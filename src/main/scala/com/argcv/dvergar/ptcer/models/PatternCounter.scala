@@ -10,6 +10,13 @@ class PatternCounter(psize: Int) {
 
   def add(i: Int): Int = counter(i).incrementAndGet()
 
+  /**
+   * @param i index
+   * @param c count
+   * @return
+   */
+  def add(i: Int, c: Int) = counter(i).addAndGet(c)
+
   def count(i: Int): Int = counter(i).get()
 
   def printAll(): Unit = {

@@ -2,6 +2,8 @@ package com.argcv.dvergar.ptcer.models
 
 import java.util.concurrent.atomic.AtomicInteger
 
+import scala.collection.concurrent.TrieMap
+import scala.collection.mutable
 import scala.collection.mutable.{ Map => MMap }
 
 /**
@@ -25,6 +27,7 @@ class Graph(nsize: Int) {
    * value: Event instance
    */
   lazy val emap: MMap[Int, Event] = MMap[Int, Event]()
+  lazy val acMap = TrieMap[String, (Option[Int], Boolean)]()
 
   /**
    * add a new node
@@ -82,20 +85,6 @@ class Graph(nsize: Int) {
   def eid2NOut(eid: Int): List[Int] = eid2Node(eid).out.toList
 
   /**
-   * get node by event id
-   * @param eid event id
-   * @return
-   */
-  def eid2Node(eid: Int): Node = nodeGet(emap(eid).nid)
-
-  /**
-   * get pattern by pattern id
-   * @param nid pattern id
-   * @return
-   */
-  def nodeGet(nid: Int): Node = nlacus(nid)
-
-  /**
    * @param eid event id to event id in
    * @return
    */
@@ -115,11 +104,18 @@ class Graph(nsize: Int) {
   def eid2NIn(eid: Int): List[Int] = eid2Node(eid).in.toList
 
   /**
-   * get event by event id
+   * get node by event id
    * @param eid event id
    * @return
    */
-  def eventGet(eid: Int): Event = emap(eid)
+  def eid2Node(eid: Int): Node = nodeGet(emap(eid).nid)
+
+  /**
+   * get pattern by pattern id
+   * @param nid pattern id
+   * @return
+   */
+  def nodeGet(nid: Int): Node = nlacus(nid)
 
   /**
    * remove one event by id
@@ -128,7 +124,46 @@ class Graph(nsize: Int) {
    */
   def eventRm(eid: Int): Option[Event] = emap.synchronized(emap.remove(eid))
 
+  /**
+   * @param nid node id
+   * @return
+   */
+  def nid2NidOut(nid: Int): mutable.Set[Int] = nlacus(nid).out
+
+  /**
+   * @param nid node id
+   * @return
+   */
+  def nid2NidIn(nid: Int): mutable.Set[Int] = nlacus(nid).in
+
+  /**
+   * node id to event size
+   * @param nid node id
+   * @return
+   */
+  def nid2ESize(nid: Int) = nlacus(nid).evq.size
+
+  /**
+   * event id to node id
+   * @param eid event id
+   * @return
+   */
+  def eid2Nid(eid: Int) = eventGet(eid).nid
+
+  /**
+   * get event by event id
+   * @param eid event id
+   * @return
+   */
+  def eventGet(eid: Int): Event = emap(eid)
+
   def link(nfrom: Int, nto: Int) =
     nlacus.synchronized(nodeGet(nfrom).out.add(nto) && nodeGet(nto).in.add(nfrom))
+
+  def acCacheGet(l: String): Option[(Option[Int], Boolean)] = acMap.get(l)
+
+  def acCacheSet(l: String, r: (Option[Int], Boolean)) = acMap.put(l, r)
+
+  def acCacheClear() = acMap.clear()
 
 }

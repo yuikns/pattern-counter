@@ -80,15 +80,13 @@ object GraphAnalyzer extends Awakable {
         }
         val eid = g.eventAdd(nid, ts)
         logger.info(s"eid: $eid")
-        val pendingSet = Set[Int](eid)
-        val checkedSet = MSet[Set[Int]]()
-        val ig = new AtomicInteger()
+        val pendingSet = List[Int](g.eid2Nid(eid))
+        val checkedSet = MSet[List[Int]]()
         eventCheck(
           ae = eid,
-          rBount = g.eventGet(eid).getOrSetSeq(eid, ig.getAndIncrement()),
-          ig = ig,
-          pendingSet = pendingSet,
-          checkedSet = checkedSet,
+          an = g.eid2Nid(eid),
+          detectedNids = pendingSet,
+          nids2Ignore = checkedSet,
           g = g,
           pc = pc,
           st = st)
@@ -96,80 +94,109 @@ object GraphAnalyzer extends Awakable {
     }
   }
 
-  def eventCheck(ae: Int,
-    rBount: Int,
-    ig: AtomicInteger,
-    pendingSet: Set[Int],
-    checkedSet: MSet[Set[Int]],
-    g: Graph,
-    pc: PatternCounter,
-    st: TrieTree[Int]): Unit = {
-    val neighbors = pendingSet.flatMap { eid =>
-      g.eid2EIn(eid) ::: g.eid2EOut(eid)
-    }.filter(_.getOrSetSeq(ae, ig.getAndIncrement()) > rBount).map(_.eid)
-    //    val aliveSet: ParSet[Set[Int]] = neighbors.par.flatMap { eid =>
-    //      val tmpSet: Set[Int] = pendingSet + eid
-    //      checkedSet.synchronized {
-    //        if (checkedSet.contains(tmpSet)) {
-    //          None
-    //        } else {
-    //          checkedSet.add(tmpSet)
-    //          Some(tmpSet)
-    //        }
-    //      }
-    //    }
-    neighbors.foreach { neighbor =>
-      val ac = pendingSet + neighbor
-      new Discoverer(g, ac.toList).
-        discoverOne(ae) match {
-          case Some(path) =>
-            val rst = st.check(path)
-            if (rst._1.isDefined) {
-              pc.add(rst._1.get)
-            }
-            if (rst._2 && ac.size <= MAX_NODE_SIZE) {
-              eventCheck(ae, g.eventGet(neighbor).tSeq, ig, ac, checkedSet, g, pc, st)
-            }
-          case None =>
-        }
+  /**
+   * get all situation count
+   * @param cands List[(AllCount,RquireCount)]
+   * @return
+   */
+  def combSize(cands: List[(Int, Int)]) = {
+    def comb(all: Int, req: Int): Int =
+      (1 to req).par.foldLeft(((all - req + 1) to all).product)(_ / _)
+    cands.foldLeft(1) { (l, c) =>
+      if (c._1 < c._2) {
+        0
+      } else {
+        l * comb(c._1, c._2)
+      }
     }
   }
 
-  //
-  //  def eventCheck(ae: Int,
-  //                 pendingSet: Set[Int],
-  //                 checkedSet: MSet[Set[Int]],
-  //                 g: Graph,
-  //                 pc: PatternCounter,
-  //                 st: TrieTree[Int]): Unit = {
-  //    val neighbors: Set[Int] = pendingSet.flatMap { eid =>
-  //      g.eid2EidIn(eid) ::: g.eid2EidOut(eid)
-  //    }
-  //    val aliveSet: ParSet[Set[Int]] = neighbors.par.flatMap { eid =>
-  //      val tmpSet: Set[Int] = pendingSet + eid
-  //      checkedSet.synchronized {
-  //        if (checkedSet.contains(tmpSet)) {
-  //          None
-  //        } else {
-  //          checkedSet.add(tmpSet)
-  //          Some(tmpSet)
-  //        }
-  //      }
-  //    }
-  //    aliveSet.foreach { ac =>
-  //      new Discoverer(g, ac.toList).
-  //        discoverOne(ae) match {
-  //        case Some(path) =>
-  //          val rst = st.check(path)
-  //          if (rst._1.isDefined) {
-  //            pc.add(rst._1.get)
-  //          }
-  //          if (rst._2 && ac.size <= MAX_NODE_SIZE) {
-  //            eventCheck(ae, ac, checkedSet, g, pc, st)
-  //          }
-  //        case None =>
-  //      }
-  //    }
-  //  }
+  /**
+   * @param ae active event id
+   * @param detectedNids pending set
+   * @param nids2Ignore checked set
+   * @param g graph
+   * @param pc pattern counter
+   * @param st trie tree
+   * @param an node id of active event stored in
+   */
+  def eventCheck(ae: Int,
+    an: Int,
+    detectedNids: List[Int],
+    nids2Ignore: MSet[List[Int]],
+    g: Graph,
+    pc: PatternCounter,
+    st: TrieTree[Int]): Unit = {
+    val neighborNids = detectedNids.par.flatMap { nid =>
+      g.nid2NidOut(nid).toList ::: g.nid2NidIn(nid).toList
+    }.distinct.filter(g.nid2ESize(_) > 0)
+
+    val pendingList = neighborNids.flatMap { (nid: Int) =>
+      val tmpList: List[Int] = detectedNids.toList :+ nid
+      val slist = tmpList.sortWith(_ > _)
+      nids2Ignore.synchronized {
+        if (nids2Ignore.contains(slist)) {
+          None
+        } else {
+          nids2Ignore.add(slist)
+          Some(tmpList)
+        }
+      }
+    }
+    pendingList.foreach { (nids2Check: List[Int]) =>
+      def combCheck(n2c: List[Int]): Int = {
+        val n2cs: (List[Int], List[Int]) = n2c.splitAt(1)
+        val cclist = n2cs._2.groupBy(e => e)
+          .toList
+          .map { nd =>
+            val nid = nd._1
+            val rqe = nd._2.length
+            val cap = if (nd._1 == an) g.nid2ESize(nid) - 1 else g.nid2ESize(nid)
+            (cap, rqe)
+          }
+        //println(s"cclst: $cclist")
+        combSize(cclist)
+      }
+      //println(s"### nids: $nids2Check")
+      val csz = combCheck(nids2Check)
+      //println(s" ## $csz")
+      if (csz > 0) {
+        val eidSet = MSet[Int]()
+        //println(s"nids: $nids2Check , csz : $csz")
+        val slist = nids2Check.sortWith(_ > _).mkString("-")
+
+        val rt: Option[(Option[Int], Boolean)] = g.acCacheGet(slist) match {
+          case Some(rt: (Option[Int], Boolean)) =>
+            Some(rt)
+          case None =>
+            val eids: List[Int] = nids2Check.map { nid =>
+              val epool = g.nodeGet(nid).evq
+              val ev: Event = epool.find(e => !eidSet.contains(e.eid)).get
+              eidSet.add(ev.eid)
+              ev.eid
+            }
+            new Discoverer(g, eids).
+              discoverOne(eids.head) match {
+                case Some(path: List[Edge]) =>
+                  val rst: (Option[Int], Boolean) = st.check(path)
+                  g.acCacheSet(slist, rst)
+                  Some(rst)
+                case None =>
+                  None
+              }
+        }
+        if (rt.isDefined) {
+          val rst = rt.get
+          if (rst._1.isDefined) {
+            pc.add(rst._1.get, csz)
+          }
+          if (rst._2 && nids2Check.size < MAX_NODE_SIZE) {
+            eventCheck(ae, an, nids2Check, nids2Ignore, g, pc, st)
+          }
+        }
+
+      }
+    }
+  }
 
 }
