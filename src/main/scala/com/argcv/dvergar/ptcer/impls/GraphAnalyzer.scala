@@ -99,7 +99,7 @@ object GraphAnalyzer extends Awakable {
    * @param cands List[(AllCount,RquireCount)]
    * @return
    */
-  def combSize(cands: List[(Int, Int)]) = {
+  def combSize(cands: List[(Int, Int)]): Int = {
     def comb(all: Int, req: Int): Int =
       (1 to req).par.foldLeft(((all - req + 1) to all).product)(_ / _)
     cands.foldLeft(1) { (l, c) =>
@@ -144,7 +144,7 @@ object GraphAnalyzer extends Awakable {
       }
     }
     pendingList.foreach { (nids2Check: List[Int]) =>
-      def combCheck(n2c: List[Int]): Int = {
+      def combCheck(n2c: List[Int]) = {
         val n2cs: (List[Int], List[Int]) = n2c.splitAt(1)
         val cclist = n2cs._2.groupBy(e => e)
           .toList
@@ -175,7 +175,7 @@ object GraphAnalyzer extends Awakable {
             case Some(path: List[Edge]) =>
               val rst: (Option[Int], Boolean) = st.check(path)
               if (rst._1.isDefined) {
-                pc.add(rst._1.get, csz)
+                pc.add(rst._1.get, csz.toLong)
               }
               if (rst._2 && nids2Check.size < MAX_NODE_SIZE) {
                 eventCheck(ae, an, nids2Check, nids2Ignore, g, pc, st)

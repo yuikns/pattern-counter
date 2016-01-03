@@ -1,23 +1,23 @@
 package com.argcv.dvergar.ptcer.models
 
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * @author yu
  */
 class PatternCounter(psize: Int) {
-  val counter = (0 until psize).map(i => new AtomicInteger()).toArray
+  val counter = (0 until psize).map(i => new AtomicLong()).toArray
 
-  def add(i: Int): Int = counter(i).incrementAndGet()
+  def add(i: Int): Long = counter(i).incrementAndGet()
 
   /**
    * @param i index
    * @param c count
    * @return
    */
-  def add(i: Int, c: Int) = counter(i).addAndGet(c)
+  def add(i: Int, c: Long): Long = counter(i).addAndGet(c)
 
-  def count(i: Int): Int = counter(i).get()
+  def count(i: Int): Long = counter(i).get()
 
   def printAll(): Unit = {
     println("Pattern Summary:")
