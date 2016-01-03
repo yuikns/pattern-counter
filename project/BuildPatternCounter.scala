@@ -1,5 +1,6 @@
 import sbt.Keys._
 import sbt._
+import sbtassembly.AssemblyKeys._
 
 object BuildPatternCounter extends Build {
   lazy val id = "pattern-counter" // dvergar
@@ -49,10 +50,15 @@ object BuildPatternCounter extends Build {
     )
   )
 
+  lazy val assemblySettings = Seq(
+    assemblyJarName in assembly := s"$id.jar"
+  )
+
   lazy val root = Project(id = id, base = file("."))
     .settings(commonSettings: _*)
     .settings(publishSettings: _*)
     .settings(dependenciesSettings: _*)
+    .settings(assemblySettings: _*)
     .dependsOn(valhalla)
     .aggregate(valhalla)
 

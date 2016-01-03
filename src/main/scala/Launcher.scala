@@ -2,25 +2,109 @@ import com.argcv.dvergar.ptcer.impls.GraphAnalyzer
 import com.argcv.dvergar.ptcer.models.{ Graph, PatternCounter, TrieTree }
 import org.slf4j.LoggerFactory
 
-object Settings {
-  lazy val graphSmall: String = "data/dataset/ER_small/graph.txt"
-  lazy val graphLarge: String = "data/dataset/ER_large/graph.txt"
+case class ArgsOpt(
+  dir: String = "",
+  delta: Int = 3,
+  step: Int = 20) {
 
-  lazy val logsSmall: String = "data/dataset/ER_small/logs.txt"
-  lazy val logsLarge: String = "data/dataset/ER_large/logs.txt"
+  override def toString =
+    s"dir : $dir\ngraph : $graph\n" +
+      s"logs : $logs\ndelta : $delta\nstep : $step"
 
-  /**
-   * delta, event expired
-   */
-  lazy val delta: Int = 3
+  def logs = s"$dir/logs.txt"
+
+  def graph = s"$dir/graph.txt"
+
+  def nodeDict = s"$dir/node_dict.txt"
+
+  def init() = this.suit(suitCands("small"))
+
+  def suit(s: String) = this.copy(dir = s"data/dataset/$s")
+
+  def suitCands = Map[String, String](
+    "small" -> "ER_small",
+    "middle" -> "ER_middle",
+    "large" -> "ER_large"
+  )
+
+  def withArgs(args: Array[String], offset: Int): ArgsOpt = {
+    //lazy val logger = LoggerFactory.getLogger(this.getClass)
+    def noEnoughParameterErrorLog(s: String): Unit = {
+      println(s"no enough parameter for $s")
+    }
+    def unExpectParameterErrorLog(s: String, e: String): Unit = {
+      println(s"unexpect parameter after: $s $e")
+    }
+    if (args.length > offset) {
+      args(offset) match {
+        case "-d" => // delta
+          if (args.length > offset) {
+            val nxArgs: (ArgsOpt, Int) = try {
+              (this.copy(delta = args(offset + 1).toInt), offset + 2)
+            } catch {
+              case t: Throwable =>
+                unExpectParameterErrorLog(args(offset), t.getLocalizedMessage)
+                (this, offset + 1)
+            }
+            nxArgs._1.withArgs(args, nxArgs._2)
+          } else {
+            noEnoughParameterErrorLog(args(offset))
+            this
+          }
+        case "-l" => // log step
+          if (args.length > offset) {
+            val nxArgs: (ArgsOpt, Int) = try {
+              (this.copy(step = args(offset + 1).toInt), offset + 2)
+            } catch {
+              case t: Throwable =>
+                unExpectParameterErrorLog(args(offset), t.getLocalizedMessage)
+                (this, offset + 1)
+            }
+            nxArgs._1.withArgs(args, nxArgs._2)
+          } else {
+            noEnoughParameterErrorLog(args(offset))
+            this
+          }
+        case "-s" =>
+          if (args.length > offset) {
+            val nxArgs: (ArgsOpt, Int) = try {
+              (this.copy(dir = args(offset + 1)), offset + 2)
+            } catch {
+              case t: Throwable =>
+                unExpectParameterErrorLog(args(offset), t.getLocalizedMessage)
+                (this, offset + 1)
+            }
+            nxArgs._1.withArgs(args, nxArgs._2)
+          } else {
+            noEnoughParameterErrorLog(args(offset))
+            this
+          }
+        case "-v" =>
+          this.copy(step = 1).withArgs(args, offset + 1)
+        case "-h" =>
+          println(s"pattern-counter [-s dir] [-l log step] [-d delta] [-v] [suit/dir]")
+          this
+        case s: String =>
+          if (suitCands.contains(s)) {
+            this.suit(suitCands(s)).withArgs(args, offset + 1)
+          } else {
+            this.suit(s).withArgs(args, offset + 1)
+          }
+      }
+    } else {
+      this
+    }
+  }
 }
 
 /**
  * @author yu
  */
 object Launcher extends App {
-
   lazy val logger = LoggerFactory.getLogger(Launcher.getClass)
+  println(s"args: $args")
+  val opts = ArgsOpt().init().withArgs(args, 0)
+  println(s"Options:\n$opts")
   logger.info("all starting ...")
   val timeStart = System.currentTimeMillis()
 
@@ -48,12 +132,12 @@ object Launcher extends App {
   /**
    * current graph
    */
-  val g: Graph = GraphAnalyzer.loadGraph(Settings.graphLarge)
+  val g: Graph = GraphAnalyzer.loadGraph(opts.graph)
 
   val timeGraphLoad = System.currentTimeMillis()
   logger.info(s"graph loaded, size: ${g.nlacus.length}, time cost: ${timeGraphLoad - timeCounterInit} ms")
 
-  GraphAnalyzer.eventGoThrough(Settings.logsLarge, g, pc, st, delta = 10, step = 100)
+  GraphAnalyzer.eventGoThrough(opts.logs, g, pc, st, delta = opts.delta, step = opts.step)
 
   val timeEventPass = System.currentTimeMillis()
   logger.info(s"logs passed, time cost: ${timeEventPass - timeGraphLoad} ms")

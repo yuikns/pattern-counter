@@ -2,7 +2,6 @@ package com.argcv.dvergar.ptcer.models
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.collection.mutable.{ Map => MMap }
 
@@ -27,7 +26,7 @@ class Graph(nsize: Int) {
    * value: Event instance
    */
   lazy val emap: MMap[Int, Event] = MMap[Int, Event]()
-  lazy val acMap = TrieMap[String, (Option[Int], Boolean)]()
+  //lazy val acMap = TrieMap[String, (Option[Int], Boolean)]()
 
   /**
    * add a new node
@@ -160,10 +159,10 @@ class Graph(nsize: Int) {
   def link(nfrom: Int, nto: Int) =
     nlacus.synchronized(nodeGet(nfrom).out.add(nto) && nodeGet(nto).in.add(nfrom))
 
-  def acCacheGet(l: String): Option[(Option[Int], Boolean)] = acMap.get(l)
-
-  def acCacheSet(l: String, r: (Option[Int], Boolean)) = acMap.put(l, r)
-
-  def acCacheClear() = acMap.clear()
+  //  def acCacheGet(l: String): Option[(Option[Int], Boolean)] = acMap.get(l)
+  //
+  //  def acCacheSet(l: String, r: (Option[Int], Boolean)) = acMap.put(l, r)
+  //
+  //  def acCacheClear() = acMap.clear()
 
 }

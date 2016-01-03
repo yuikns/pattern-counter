@@ -79,7 +79,7 @@ object GraphAnalyzer extends Awakable {
           g.eventGC(ts, delta)
         }
         val eid = g.eventAdd(nid, ts)
-        logger.info(s"eid: $eid")
+        //logger.info(s"eid: $eid")
         val pendingSet = List[Int](g.eid2Nid(eid))
         val checkedSet = MSet[List[Int]]()
         eventCheck(
@@ -163,37 +163,57 @@ object GraphAnalyzer extends Awakable {
       if (csz > 0) {
         val eidSet = MSet[Int]()
         //println(s"nids: $nids2Check , csz : $csz")
-        val slist = nids2Check.sortWith(_ > _).mkString("-")
 
-        val rt: Option[(Option[Int], Boolean)] = g.acCacheGet(slist) match {
-          case Some(rt: (Option[Int], Boolean)) =>
-            Some(rt)
-          case None =>
-            val eids: List[Int] = nids2Check.map { nid =>
-              val epool = g.nodeGet(nid).evq
-              val ev: Event = epool.find(e => !eidSet.contains(e.eid)).get
-              eidSet.add(ev.eid)
-              ev.eid
-            }
-            new Discoverer(g, eids).
-              discoverOne(eids.head) match {
-                case Some(path: List[Edge]) =>
-                  val rst: (Option[Int], Boolean) = st.check(path)
-                  g.acCacheSet(slist, rst)
-                  Some(rst)
-                case None =>
-                  None
+        val eids: List[Int] = nids2Check.map { nid =>
+          val epool = g.nodeGet(nid).evq
+          val ev: Event = epool.find(e => !eidSet.contains(e.eid)).get
+          eidSet.add(ev.eid)
+          ev.eid
+        }
+        new Discoverer(g, eids).
+          discoverOne(eids.head) match {
+            case Some(path: List[Edge]) =>
+              val rst: (Option[Int], Boolean) = st.check(path)
+              if (rst._1.isDefined) {
+                pc.add(rst._1.get, csz)
               }
-        }
-        if (rt.isDefined) {
-          val rst = rt.get
-          if (rst._1.isDefined) {
-            pc.add(rst._1.get, csz)
+              if (rst._2 && nids2Check.size < MAX_NODE_SIZE) {
+                eventCheck(ae, an, nids2Check, nids2Ignore, g, pc, st)
+              }
+            case None =>
           }
-          if (rst._2 && nids2Check.size < MAX_NODE_SIZE) {
-            eventCheck(ae, an, nids2Check, nids2Ignore, g, pc, st)
-          }
-        }
+
+        //        val slist = nids2Check.sortWith(_ > _).mkString("-")
+        //
+        //        val rt: Option[(Option[Int], Boolean)] = g.acCacheGet(slist) match {
+        //          case Some(rt: (Option[Int], Boolean)) =>
+        //            Some(rt)
+        //          case None =>
+        //            val eids: List[Int] = nids2Check.map { nid =>
+        //              val epool = g.nodeGet(nid).evq
+        //              val ev: Event = epool.find(e => !eidSet.contains(e.eid)).get
+        //              eidSet.add(ev.eid)
+        //              ev.eid
+        //            }
+        //            new Discoverer(g, eids).
+        //              discoverOne(eids.head) match {
+        //                case Some(path: List[Edge]) =>
+        //                  val rst: (Option[Int], Boolean) = st.check(path)
+        //                  g.acCacheSet(slist, rst)
+        //                  Some(rst)
+        //                case None =>
+        //                  None
+        //              }
+        //        }
+        //        if (rt.isDefined) {
+        //          val rst = rt.get
+        //          if (rst._1.isDefined) {
+        //            pc.add(rst._1.get, csz)
+        //          }
+        //          if (rst._2 && nids2Check.size < MAX_NODE_SIZE) {
+        //            eventCheck(ae, an, nids2Check, nids2Ignore, g, pc, st)
+        //          }
+        //        }
 
       }
     }
