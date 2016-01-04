@@ -52,7 +52,7 @@ object GraphAnalyzer extends Awakable {
     */
   def loadGraph(path: String): Graph = {
     val s = Source.fromFile(new File(path)).getLines()
-    val nsize =  s.next().split("\t").head.toInt
+    val nsize = s.next().split("\t").head.toInt
     logger.info(s"graph node size: $nsize")
     val g = new Graph(nsize)
     var count = 0
@@ -60,7 +60,7 @@ object GraphAnalyzer extends Awakable {
       val eg = l.split("\t")
       if (eg.length >= 2) {
         count += 1
-        if(count % 1000000 == 0) {
+        if (count % 1000000 == 0) {
           logger.info(s"graph loaded : $count")
         }
         g.link(eg(0).toInt, eg(1).toInt)
@@ -70,6 +70,7 @@ object GraphAnalyzer extends Awakable {
   }
 
   def eventGoThrough(path: String, g: Graph, pc: PatternCounter, st: TrieTree[Int], delta: Long = 3, step: Int = 1000): Unit = {
+    val thCounter = new AtomicInteger
     val lcnt = new AtomicInteger
     val timeStart = System.currentTimeMillis()
     var cts: Long = 0
@@ -85,10 +86,10 @@ object GraphAnalyzer extends Awakable {
         val ts = info(1).toLong
 
         // gc section
-        if (ts - cts > gcTimeout) {
-          g.eventGC(ts, gcDelta)
-          cts = ts
-        }
+        //        if (ts - cts > gcTimeout) {
+        //          g.eventGC(ts, gcDelta)
+        //          cts = ts
+        //        }
 
         // event add
         val eid = g.eventAdd(nid, ts)
@@ -108,44 +109,6 @@ object GraphAnalyzer extends Awakable {
     }
   }
 
-  //
-  //  /**
-  //    * get all situation count
-  //    * @param cands List[(AllCount,RquireCount)]
-  //    * @return
-  //    */
-  //  def combSize(cands: List[(Int, Int)]): Int = {
-  //    def comb(all: Int, req: Int): Int =
-  //      (1 to req).par.foldLeft(((all - req + 1) to all).product)(_ / _)
-  //    cands.foldLeft(1) { (l, c) =>
-  //      if (c._1 < c._2) {
-  //        0
-  //      } else {
-  //        l * comb(c._1, c._2)
-  //      }
-  //    }
-  //  }
-  //
-  //  /**
-  //    * return posiblity of combine
-  //    * @param n2c node id to check
-  //    * @param an active node
-  //    * @param g graph
-  //    * @return
-  //    */
-  //  def combCheck(n2c: List[Int], an: Int, g: Graph) = {
-  //    val n2cs: (List[Int], List[Int]) = n2c.splitAt(1)
-  //    val cclist = n2cs._2.groupBy(e => e)
-  //      .toList
-  //      .map { nd =>
-  //        val nid = nd._1
-  //        val rqe = nd._2.length
-  //        val cap = if (nd._1 == an) g.nid2ESize(nid) - 1 else g.nid2ESize(nid)
-  //        (cap, rqe)
-  //      }
-  //    //println(s"cclst: $cclist")
-  //    combSize(cclist)
-  //  }
 
   /**
     * return posiblity of combine
@@ -154,7 +117,7 @@ object GraphAnalyzer extends Awakable {
     * @return
     * @param delta delta
     */
-  def combCheck(n2c: List[Int], g: Graph, delta: Long) = {
+  def combCheck(ae: Int, an: Int, n2c: List[Int], g: Graph, delta: Long) = {
     /**
       * node id left is greater than node right?
       * one assumption is that nidl and nidr are neighbors
@@ -182,8 +145,8 @@ object GraphAnalyzer extends Awakable {
 
     //val eid2ts: ParSeq[(Int, Long)] = n2c.par.flatMap(g.nodeGet(_).evq.map(e=>(e.eid,e.ts)))
     val nlist: List[Node] = n2c.map(g.nodeGet)
-    val an = nlist.head.nid
-    val ae = nlist.head.evq.head.eid
+    //val an = nlist.head.nid
+    //val ae = nlist.head.evq.head.eid
     val ts = nlist.head.evq.head.ts
 
     val eid2Info: Map[Int, (Int, Long)] = nlist.flatMap(n => n.evq.map(e => (e.eid, (e.nid, e.ts)))).toMap
@@ -277,7 +240,7 @@ object GraphAnalyzer extends Awakable {
     }
     pendingList.foreach { (nids2Check: List[Int]) =>
       //println(s"### nids: $nids2Check")
-      val csz = combCheck(nids2Check, g, delta)
+      val csz = combCheck(ae, an, nids2Check, g, delta)
       //println(s" ## $csz")
       if (csz._1 > 0) {
         val eids = csz._2.get
