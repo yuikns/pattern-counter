@@ -1,28 +1,28 @@
 package com.argcv.dvergar.ptcer.models
 
-import scala.collection.mutable.{ ArrayBuffer, Map => MMap, Queue => MQueue, Set => MSet }
+import scala.collection.mutable.{ArrayBuffer, Map => MMap, Queue => MQueue, Set => MSet}
 
 /**
- * @param nid pattern id
- * @param out neighbors out
- * @param in neighbors in
- * @param evq node queue
- */
+  * @param nid pattern id
+  * @param out neighbors out
+  * @param in neighbors in
+  * @param evq node queue
+  */
 
 case class Node(nid: Int,
-  out: MSet[Int],
-  in: MSet[Int],
-  evq: MQueue[Event]) {
+                out: MSet[Int],
+                in: MSet[Int],
+                evq: MQueue[Event]) {
 
   /**
-   * node garbage collection
-   * remove node object,
-   * return node ids (to remove in node nlacus)
-   * @param cts current time stamp
-   * @param delta delta
-   * @return event ids to remove
-   */
-  def eventGC(cts: Int, delta: Int = 3): Array[Int] = evq.synchronized {
+    * node garbage collection
+    * remove node object,
+    * return node ids (to remove in node nlacus)
+    * @param cts current time stamp
+    * @param delta delta
+    * @return event ids to remove
+    */
+  def eventGC(cts: Long, delta: Long = 3): Array[Int] = evq.synchronized {
     val eids = ArrayBuffer[Int]()
     while (evq.headOption match {
       case Some(n) =>
@@ -39,16 +39,16 @@ case class Node(nid: Int,
   }
 
   /**
-   * get Nth event in this node
-   * @param i index
-   * @return
-   */
+    * get Nth event in this node
+    * @param i index
+    * @return
+    */
   def eventGet(i: Int) = evq.get(i)
 
   /**
-   * add a new event
-   * @param e node object
-   */
+    * add a new event
+    * @param e node object
+    */
   def eventAdd(e: Event) = evq.synchronized(evq.enqueue(e))
 
   override def toString =

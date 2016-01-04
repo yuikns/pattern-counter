@@ -1,11 +1,11 @@
 import com.argcv.dvergar.ptcer.impls.GraphAnalyzer
-import com.argcv.dvergar.ptcer.models.{ Graph, PatternCounter, TrieTree }
+import com.argcv.dvergar.ptcer.models.{Graph, PatternCounter, TrieTree}
 import org.slf4j.LoggerFactory
 
 case class ArgsOpt(
-  dir: String = "",
-  delta: Int = 3,
-  step: Int = 20) {
+                    dir: String = "",
+                    delta: Long = 3,
+                    step: Int = 20) {
 
   override def toString =
     s"dir : $dir\ngraph : $graph\n" +
@@ -40,7 +40,7 @@ case class ArgsOpt(
         case "-d" => // delta
           if (args.length > offset) {
             val nxArgs: (ArgsOpt, Int) = try {
-              (this.copy(delta = args(offset + 1).toInt), offset + 2)
+              (this.copy(delta = args(offset + 1).toLong), offset + 2)
             } catch {
               case t: Throwable =>
                 unExpectParameterErrorLog(args(offset), t.getLocalizedMessage)
@@ -98,8 +98,8 @@ case class ArgsOpt(
 }
 
 /**
- * @author yu
- */
+  * @author yu
+  */
 object Launcher extends App {
   lazy val logger = LoggerFactory.getLogger(Launcher.getClass)
   println(s"args: $args")
@@ -109,29 +109,29 @@ object Launcher extends App {
   val timeStart = System.currentTimeMillis()
 
   /**
-   * pattern graph init
-   */
+    * pattern graph init
+    */
   val pgl = GraphAnalyzer.loadPatterns("data/pattern")
 
   GraphAnalyzer.MAX_NODE_SIZE = pgl.map(e => e.nlacus.length).sortWith(_ > _).head
 
   /**
-   * search tree for patterns
-   */
+    * search tree for patterns
+    */
   val st: TrieTree[Int] = GraphAnalyzer.buildSearchTree(pgl)
   val timeLoadPatterns = System.currentTimeMillis()
   logger.info(s"patterns loaded, size: ${pgl.length}, time cost: ${timeLoadPatterns - timeStart} ms")
 
   /**
-   * pattern counter
-   */
+    * pattern counter
+    */
   val pc = new PatternCounter(pgl.length)
   val timeCounterInit = System.currentTimeMillis()
   logger.info(s"pattern counter inited, time cost: ${timeCounterInit - timeLoadPatterns} ms")
 
   /**
-   * current graph
-   */
+    * current graph
+    */
   val g: Graph = GraphAnalyzer.loadGraph(opts.graph)
 
   val timeGraphLoad = System.currentTimeMillis()

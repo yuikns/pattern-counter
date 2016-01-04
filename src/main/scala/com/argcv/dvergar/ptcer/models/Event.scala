@@ -7,7 +7,7 @@ package com.argcv.dvergar.ptcer.models
  * @param ein pattern in
  * @param eout node out
  */
-case class Event(eid: Int, nid: Int, ts: Int, eout: Option[List[Int]] = None, ein: Option[List[Int]] = None) {
+case class Event(eid: Int, nid: Int, ts: Long, eout: Option[List[Int]] = None, ein: Option[List[Int]] = None) {
   lazy val tMonitor = new AnyRef
   var tFlag = -1
   var tSeq = 0
